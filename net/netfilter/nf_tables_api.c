@@ -6652,6 +6652,9 @@ static bool nft_setelem_is_catchall(const struct nft_set *set,
 {
 	struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 
+	if (WARN_ON_ONCE(!elem->priv))
+		return false;
+
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_FLAGS) &&
 	    *nft_set_ext_flags(ext) & NFT_SET_ELEM_CATCHALL)
 		return true;
@@ -6663,6 +6666,9 @@ static void nft_setelem_activate(struct net *net, struct nft_set *set,
 				 struct nft_set_elem *elem)
 {
 	struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+
+	if (WARN_ON_ONCE(!elem->priv))
+		return;
 
 	if (nft_setelem_is_catchall(set, elem)) {
 		nft_clear(net, ext);
@@ -6747,6 +6753,9 @@ static void nft_setelem_remove(const struct net *net,
 			       const struct nft_set *set,
 			       const struct nft_set_elem *elem)
 {
+	if (WARN_ON_ONCE(!elem->priv))
+		return;
+
 	if (nft_setelem_is_catchall(set, elem))
 		nft_setelem_catchall_remove(net, set, elem);
 	else
@@ -7254,6 +7263,9 @@ static int nft_setelem_active_next(const struct net *net,
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	u8 genmask = nft_genmask_next(net);
 
+	if (WARN_ON_ONCE(!elem->priv))
+		return false;
+
 	return nft_set_elem_active(ext, genmask);
 }
 
@@ -7262,6 +7274,9 @@ static void nft_setelem_data_activate(const struct net *net,
 				      struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+
+	if (WARN_ON_ONCE(!elem->priv))
+		return;
 
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
 		nft_data_hold(nft_set_ext_data(ext), set->dtype);
@@ -7274,6 +7289,9 @@ void nft_setelem_data_deactivate(const struct net *net,
 				 struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+
+	if (WARN_ON_ONCE(!elem->priv))
+		return;
 
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
 		nft_data_release(nft_set_ext_data(ext), set->dtype);
