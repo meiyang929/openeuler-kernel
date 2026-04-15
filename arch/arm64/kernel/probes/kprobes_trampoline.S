@@ -62,6 +62,7 @@
 	.endm
 
 SYM_CODE_START(__kretprobe_trampoline)
+SYM_INNER_LABEL(arch_rethook_trampoline, SYM_L_GLOBAL)
 	sub sp, sp, #PT_REGS_SIZE
 
 	save_all_base_regs

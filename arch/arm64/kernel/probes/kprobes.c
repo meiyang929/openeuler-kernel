@@ -14,6 +14,7 @@
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
+#include <linux/rethook.h>
 #include <linux/sched/debug.h>
 #include <linux/set_memory.h>
 #include <linux/slab.h>
@@ -398,18 +399,44 @@ int __init arch_populate_kprobe_blacklist(void)
 
 void __kprobes __used *trampoline_probe_handler(struct pt_regs *regs)
 {
+#ifdef CONFIG_KRETPROBE_ON_RETHOOK
+	return (void *)rethook_trampoline_handler(regs, regs->regs[29]);
+#else
 	return (void *)kretprobe_trampoline_handler(regs, (void *)regs->regs[29]);
+#endif
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 				      struct pt_regs *regs)
 {
+#ifdef CONFIG_KRETPROBE_ON_RETHOOK
+	ri->node.ret_addr = regs->regs[30];
+	ri->node.frame = regs->regs[29];
+
+	/* replace return addr (x30) with trampoline */
+	regs->regs[30] = (unsigned long)&arch_rethook_trampoline;
+#else
 	ri->ret_addr = (kprobe_opcode_t *)regs->regs[30];
 	ri->fp = (void *)regs->regs[29];
 
 	/* replace return addr (x30) with trampoline */
 	regs->regs[30] = (long)&__kretprobe_trampoline;
+#endif
 }
+
+#ifdef CONFIG_RETHOOK
+void arch_rethook_prepare(struct rethook_node *rhn, struct pt_regs *regs,
+			  bool mcount)
+{
+	rhn->ret_addr = regs->regs[30];
+	rhn->frame = regs->regs[29];
+
+	/* replace return addr (x30) with trampoline */
+	regs->regs[30] = (unsigned long)&arch_rethook_trampoline;
+}
+NOKPROBE_SYMBOL(arch_rethook_prepare);
+NOKPROBE_SYMBOL(arch_rethook_trampoline);
+#endif
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
