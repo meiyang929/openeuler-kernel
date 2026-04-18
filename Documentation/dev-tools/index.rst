@@ -32,6 +32,7 @@ Documentation/dev-tools/testing-overview.rst
    gdb-kernel-debugging
    kgdb
    kselftest
+   kstackwatch
    kunit/index
    ktap
    pgo
