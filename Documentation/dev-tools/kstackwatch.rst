@@ -10,7 +10,7 @@ Overview
 KStackWatch is a lightweight debugging tool designed to detect kernel stack
 corruption in real time. It installs a hardware breakpoint (watchpoint) at a
 function's specified offset using *kprobe.post_handler* and removes it in
-*fprobe.exit_handler*. This covers the full execution window and reports
+*kretprobe handler*. This covers the full execution window and reports
 corruption immediately with time, location, and call stack.
 
 Main features:
