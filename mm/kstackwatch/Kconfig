@@ -1,6 +1,6 @@
 config KSTACKWATCH
 	bool "Kernel Stack Watch"
-	depends on HAVE_HW_BREAKPOINT && KPROBES && FPROBE && STACKTRACE
+	depends on HAVE_HW_BREAKPOINT && KPROBES && KRETPROBES && STACKTRACE
 	help
 	  A lightweight real-time debugging tool to detect stack corruption
 	  and abnormal stack usage patterns in the kernel. It monitors stack

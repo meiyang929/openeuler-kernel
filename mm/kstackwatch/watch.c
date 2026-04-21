@@ -2,7 +2,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cpuhotplug.h>
-#include <linux/ftrace.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/irqflags.h>
 #include <linux/kstackwatch.h>
@@ -48,9 +47,6 @@ static void ksw_watch_handler(struct perf_event *bp,
 
 	nr = stack_trace_save_regs(regs, entries, TRAMPOLINE_DEPTH, 0);
 	for (i = 0; i < nr; i++) {
-		//ignore trampoline
-		if (is_ftrace_trampoline(entries[i]))
-			return;
 		if (ksw_watch_in_trampoline(entries[i]))
 			return;
 	}

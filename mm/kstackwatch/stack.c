@@ -2,7 +2,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/atomic.h>
-#include <linux/fprobe.h>
 #include <linux/kprobes.h>
 #include <linux/kstackwatch.h>
 #include <linux/kstackwatch_types.h>
@@ -13,7 +12,7 @@
 
 #define MAX_CANARY_SEARCH_STEPS 128
 static struct kprobe entry_probe;
-static struct fprobe exit_probe;
+static struct kretprobe exit_rp;
 
 static bool probe_enable;
 static u16 probe_generation;
@@ -333,9 +332,8 @@ out:
 #endif
 }
 
-static void ksw_stack_exit_handler(struct fprobe *fp, unsigned long ip,
-				   unsigned long ret_ip,
-				   struct pt_regs *regs, void *data)
+static int ksw_stack_exit_handler(struct kretprobe_instance *ri,
+				  struct pt_regs *regs)
 {
 	struct ksw_ctx *ctx = &current->ksw_ctx;
 #ifdef CONFIG_KSTACKWATCH_PROFILING
@@ -368,12 +366,12 @@ out:
 			    &md->total_exit_without_watch_cycles,
 			    &md->exit_without_watch_count);
 #endif
+	return 0;
 }
 
 int ksw_stack_init(void)
 {
 	int ret;
-	char *symbuf = NULL;
 
 	memset(&entry_probe, 0, sizeof(entry_probe));
 	entry_probe.symbol_name = ksw_get_config()->func_name;
@@ -385,13 +383,21 @@ int ksw_stack_init(void)
 		return ret;
 	}
 
-	memset(&exit_probe, 0, sizeof(exit_probe));
-	exit_probe.exit_handler = ksw_stack_exit_handler;
-	symbuf = (char *)ksw_get_config()->func_name;
+	memset(&exit_rp, 0, sizeof(exit_rp));
+	exit_rp.handler = ksw_stack_exit_handler;
+	exit_rp.kp.symbol_name = ksw_get_config()->func_name;
+	/*
+	 * maxactive=0 lets the kernel choose a default (max(10, 2*NR_CPUS)),
+	 * which is sufficient for the concurrency levels expected here.
+	 * KStackWatch already limits active watchpoints via max_watch, so
+	 * missed returns due to pool exhaustion are not a correctness concern
+	 * beyond what the depth/generation tracking already handles.
+	 */
+	exit_rp.maxactive = 0;
 
-	ret = register_fprobe_syms(&exit_probe, (const char **)&symbuf, 1);
+	ret = register_kretprobe(&exit_rp);
 	if (ret < 0) {
-		pr_err("failed to register fprobe ret %d\n", ret);
+		pr_err("failed to register kretprobe ret %d\n", ret);
 		unregister_kprobe(&entry_probe);
 		return ret;
 	}
@@ -408,7 +414,7 @@ void ksw_stack_exit(void)
 {
 	WRITE_ONCE(probe_enable, false);
 	WRITE_ONCE(probe_generation, READ_ONCE(probe_generation) + 1);
-	unregister_fprobe(&exit_probe);
+	unregister_kretprobe(&exit_rp);
 	unregister_kprobe(&entry_probe);
 #ifdef CONFIG_KSTACKWATCH_PROFILING
 	show_measure_stats();
