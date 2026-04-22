@@ -13,6 +13,8 @@ static LLIST_HEAD(free_wp_list);
 static LIST_HEAD(all_wp_list);
 static DEFINE_MUTEX(all_wp_mutex);
 
+static int ksw_cpuhp_state = -1;
+
 static ulong holder;
 
 #define TRAMPOLINE_NAME "return_to_handler"
@@ -251,6 +253,9 @@ int ksw_watch_init(void)
 {
 	int ret;
 
+	if (WARN_ON_ONCE(ksw_cpuhp_state >= 0))
+		return -EBUSY;
+
 	ksw_watch_resolve_trampoline();
 	ret = ksw_watch_alloc();
 	if (ret <= 0)
@@ -266,11 +271,16 @@ int ksw_watch_init(void)
 		return ret;
 	}
 
+	ksw_cpuhp_state = ret;
 	return 0;
 }
 
 void ksw_watch_exit(void)
 {
+	if (ksw_cpuhp_state >= 0) {
+		cpuhp_remove_state_nocalls(ksw_cpuhp_state);
+		ksw_cpuhp_state = -1;
+	}
 	ksw_watch_free();
 }
 
